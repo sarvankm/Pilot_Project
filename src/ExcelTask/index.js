@@ -1,5 +1,5 @@
 import * as React from 'react';
-
+import * as xlsx from 'xlsx';
 // for styles:
 // import 'react-tabulator/lib/styles.css'; // default theme
 // import 'react-tabulator/css/bootstrap/tabulator_bootstrap.min.css'; // use Theme(s)
@@ -10,77 +10,44 @@ import "react-tabulator/css/bootstrap/tabulator_bootstrap.min.css"; // use Theme
 import DateEditor from "react-tabulator/lib/editors/DateEditor";
 import MultiValueFormatter from "react-tabulator/lib/formatters/MultiValueFormatter";
 import MultiSelectEditor from "react-tabulator/lib/editors/MultiSelectEditor";
+import { createRoot } from 'react-dom/client';
+import { Button, Form, Input, Modal, Select } from "antd";
 
-function SimpleButton(props) {
-    const rowData = props.cell._cell.row.data;
-    const cellValue = props.cell._cell.value || 'Edit | Show';
-    return <button onClick={() => alert(rowData.name)}>{cellValue}</button>;
-}
 
-const columns = [
-    { title: 'Name', field: 'name', width: 150 },
-    { title: 'Age', field: 'age', hozAlign: 'left', formatter: 'progress' },
-    { title: 'Favourite Color', field: 'color' },
-    { title: 'Date Of Birth', field: 'dob', sorter: 'date' },
-    { title: 'Rating', field: 'rating', hozAlign: 'center', formatter: 'star' },
-    { title: 'Passed?', field: 'passed', hozAlign: 'center', formatter: 'tickCross' },
-    { title: 'Custom', field: 'custom', hozAlign: 'center', editor: 'input', formatter: reactFormatter(<SimpleButton />) }
-];
-const data = [
-    { id: 1, name: 'Oli Bob', age: '12', color: 'red', dob: '01/01/1980', rating: 5, passed: true, pets: ['cat', 'dog'] },
-    { id: 2, name: 'Mary May', age: '1', color: 'green', dob: '12/05/1989', rating: 4, passed: true, pets: ['cat'] },
-    { id: 3, name: 'Christine Lobowski', age: '42', color: 'green', dob: '10/05/1985', rating: 4, passed: false },
-    { id: 4, name: 'Brendon Philips', age: '125', color: 'red', dob: '01/08/1980', rating: 4.5, passed: true },
-    { id: 5, name: 'Margret Marmajuke', age: '16', color: 'yellow', dob: '07/01/1999', rating: 4, passed: false },
-    {
-        id: 6,
-        name: 'Van Ng',
-        age: '37',
-        color: 'green',
-        dob: '06/10/1982',
-        rating: 4,
-        passed: true,
-        pets: ['dog', 'fish']
-    },
-    { id: 7, name: 'Duc Ng', age: '37', color: 'yellow', dob: '10/10/1982', rating: 4, passed: true, pets: ['dog'] }
-];
-
-// Editable Example:
-const colorOptions = { ['']: '&nbsp;', red: 'red', green: 'green', yellow: 'yellow' };
-const petOptions = [
-    { id: 'cat', name: 'cat' },
-    { id: 'dog', name: 'dog' },
-    { id: 'fish', name: 'fish' }
-];
-const editableColumns = [
-    { title: 'Name', field: 'name', width: 150, editor: 'input', headerFilter: 'input' },
-    { title: 'Age', field: 'age', hozAlign: 'left', formatter: 'progress', editor: 'star' },
-    {
-        title: 'Favourite Color',
-        field: 'color',
-        editor: 'select',
-        editorParams: { allowEmpty: true, showListOnEmpty: true, values: colorOptions },
-        headerFilter: 'select',
-        headerFilterParams: { values: colorOptions }
-    },
-    { title: 'Date Of Birth', field: 'dob', editor: DateEditor, editorParams: { format: 'MM/DD/YYYY' } },
-    {
-        title: 'Pets',
-        field: 'pets',
-        sorter: (a, b) => a.toString().localeCompare(b.toString()),
-        editor: MultiSelectEditor,
-        editorParams: { values: petOptions },
-        formatter: MultiValueFormatter,
-        formatterParams: { style: 'PILL' }
-    },
-    { title: 'Passed?', field: 'passed', hozAlign: 'center', formatter: 'tickCross', editor: true }
-];
-
-export default () => {
+export default function ExcelTask() {
     const [state, setState] = React.useState({
         data: [],
         selectedName: ''
     });
+    const [data, setdata] = React.useState();
+    const [mapData, setMapData] = React.useState();
+    const [isModalOpen, setIsModalOpen] = React.useState(false);
+    const [inputValue, setInputValue] = React.useState();
+    const [selectValue, setSelectValue] = React.useState();
+    const editableColumns = [
+        { title: 'id', field: 'id', width: 150, headerFilter: 'input' },
+        { title: 'len', field: 'len', width: 150, headerFilter: 'input' },
+        { title: 'wkt', field: 'wkt', width: 150, headerFilter: 'input' },
+        { title: 'status', field: 'status', width: 150, headerFilter: 'input' }
+    ];
+    const showModal = () => {
+        setIsModalOpen(true);
+    };
+    const handleOk = () => {
+        const handleMapData = mapData;
+        const handleData = data;
+        handleMapData.set(data[0].id + 1, { id: data[0].id + 1, len: inputValue, status: selectValue })
+        handleData.unshift({ id: data[0].id + 1, len: inputValue, status: selectValue })
+        console.log(handleMapData);
+        console.log(handleData);
+        setdata([...handleData])
+        setMapData(handleMapData);
+        setIsModalOpen(false);
+    };
+    const handleCancel = () => {
+        setIsModalOpen(false);
+    };
+
     let ref = React.useRef();
 
     const rowClick = (e, row) => {
@@ -90,9 +57,6 @@ export default () => {
         setState({ selectedName: row.getData().name });
     };
 
-    const setData = () => {
-        setState({ data });
-    };
     const clearData = () => {
         setState({ data: [] });
     };
@@ -100,112 +64,66 @@ export default () => {
         const _newData = data.filter((item) => item.name === 'Oli Bob');
         setState({ data: _newData });
     };
+    const readUploadFile = (e) => {
+        e.preventDefault();
+        if (e.target.files) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = e.target.result;
+                const workbook = xlsx.read(data, { type: "array" });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = xlsx.utils.sheet_to_json(worksheet);
 
-    const renderAjaxScrollExample = () => {
-        const columns = [
-            { title: 'First Name', field: 'first_name', width: 150 },
-            { title: 'Last Name', field: 'last_name', width: 150 },
-            { title: 'Email', field: 'email', width: 150 }
-        ];
-        const options = {
-            height: 100,
-            movableRows: true,
-            progressiveLoad: 'scroll',
-            progressiveLoadDelay: 200,
-            progressiveLoadScrollMargin: 30,
-            ajaxURL: 'https://reqres.in/api/users',
-            dataSendParams: {
-                page: 'page',
-                size: 'per_page'
-            },
-            dataReceiveParams: {
-                last_page: 'last'
-            },
-            paginationSize: 5,
-            ajaxResponse: (url, params, response) => {
-                console.log('url, params, response', url, params, response);
-                return {
-                    data: response.data,
-                    last: response.total_pages
-                };
-            },
-            ajaxError: function (error) {
-                console.log('ajaxError', error);
-            }
-        };
-        return (
-            <ReactTabulator
-                onRef={(r) => (ref = r)}
-                columns={columns}
-                options={options}
-                events={{
-                    dataLoaded: function (data) {
-                        console.log('dataLoaded', data);
-                        // return data; //return the response data to tabulator
-                        let modResponse = {};
-                        modResponse.data = data;
-                        modResponse.last = 5;
-                        return modResponse;
-                    },
-                    ajaxError: function (error) {
-                        console.log('ajaxError', error);
-                    }
-                }}
-            />
-        );
-    };
+                const map = new Map();
+                json.forEach(item => {
+                    map.set(item.id, item);
+                });
+                setMapData(map)
+                setdata(json.reverse())
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        }
+    }
 
-    const options = {
-        height: 150,
-        movableRows: true,
-        movableColumns: true
-    };
     return (
-        <div>
-            <ReactTabulator
-                onRef={(ref) => (ref = ref)}
-                columns={columns}
-                data={data}
-                events={{
-                    rowClick: rowClick
-                }}
-                options={options}
-                data-custom-attr="test-custom-attribute"
-                className="custom-css-class"
-            />
-            <i>
-                Selected Name: <strong>{state.selectedName}</strong>
-            </i>
-
-            <h3>
-                Asynchronous data: (e.g. fetch) - <button onClick={setData}>Set Data</button>{' '}
-                <button onClick={clearData}>Clear</button> <button onClick={modifyData}>Modify Data</button>
-            </h3>
-            <ReactTabulator columns={columns} data={state.data} />
-
-            <h3>Editable Table</h3>
+        <div style={{ height: '100vh', overflow: 'scroll' }}>
+            <div style={{ display: 'flex' }}>
+                <form>
+                    <label htmlFor="upload">Upload File</label>
+                    <input
+                        type="file"
+                        accept='.xlsx'
+                        name="upload"
+                        id="upload"
+                        onChange={readUploadFile}
+                    />
+                </form>
+                <Button type="primary" onClick={showModal}>
+                    Open Modal
+                </Button>
+            </div>
+            <Modal title="Baslik" open={isModalOpen} onOk={handleOk} onCancel={handleCancel}>
+                <Form.Item label={'Len bilgisi giriniz'}>
+                    <Input value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Len bilgisi giriniz" />
+                </Form.Item>
+                <Form.Item label={'Status seciniz'}>
+                    <Select
+                        value={selectValue}
+                        onChange={(e) => setSelectValue(e)}
+                        options={[
+                            { value: '0', label: '0' },
+                            { value: '1', label: '1' },
+                        ]}
+                    />
+                </Form.Item>
+            </Modal>
             <ReactTabulator
                 columns={editableColumns}
                 data={data}
-                cellEdited={(cell) => console.log('cellEdited', cell)}
-                dataChanged={(newData) => console.log('dataChanged', newData)}
                 footerElement={<span>Footer</span>}
-                options={{ movableColumns: true, movableRows: true }}
+                options={{ 'selectable': 1 }}
             />
-
-            <h3>Infinite Scrolling with Ajax Requests</h3>
-            {renderAjaxScrollExample()}
-
-            <p>
-                <a href="https://github.com/ngduc/react-tabulator" target="_blank">
-                    Back to: Github Repo: react-tabulator
-                </a>
-            </p>
-            <p>
-                <a href="http://tabulator.info/examples/4.0" target="_blank">
-                    More Tabulator's Examples
-                </a>
-            </p>
         </div>
     );
 };
